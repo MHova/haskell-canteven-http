@@ -83,11 +83,11 @@ type ContentType = ByteString
 
   This is useful because your wai framework won't always do what you
   expect when it encounters random exceptions. For instance, an exception
-  thrown in IO may cause functionality of higher-level to be bypassed
-  unless they know how to catch and re-throw exceptions (making them more
-  complicated). This middleware explicitly will not re-throw exceptions,
-  unless those exceptions were encountered after the headers have already
-  been sent, e.g. when using 'Network.Wai.StreamingBody'.
+  thrown in IO may cause functionality of higher-level middlewares to be
+  bypassed unless they know how to catch and re-throw exceptions (making
+  them more complicated). This middleware explicitly will not re-throw
+  exceptions, unless those exceptions were encountered after the headers
+  have already been sent, e.g. when using 'Network.Wai.StreamingBody'.
   
   What it will do is generate a unique id for the exception and print
   that ID, so you can easily find it in the logs.
