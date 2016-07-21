@@ -1,0 +1,7 @@
+flags: {}
+extra-package-dbs: []
+packages:
+- '.'
+extra-deps:
+- canteven-log-1.0.0.0
+resolver: lts-6.7
