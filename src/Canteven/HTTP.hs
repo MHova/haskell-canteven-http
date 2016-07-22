@@ -20,7 +20,7 @@ import Control.Concurrent (threadDelay)
 import Control.Exception (SomeException)
 import Control.Monad (void)
 import Control.Monad.Catch (try, throwM)
-import Control.Monad.Logger (runLoggingT, LoggingT, logInfo)
+import Control.Monad.Logger (runLoggingT, LoggingT, logInfo, logError)
 import Control.Monad.Trans.Class (lift)
 import Data.ByteString.Lazy (ByteString, fromStrict)
 import Data.Monoid ((<>))
@@ -126,7 +126,7 @@ logExceptionsAndContinue logging app req respond = (`runLoggingT` logging) $
     logProblem :: SomeException -> LoggingT IO UUID
     logProblem err = do
       uuid <- getUUID
-      $(logInfo) . pack
+      $(logError) . pack
         $ "Internal Server Error [" ++ show uuid ++ "]: "
         ++ show (err :: SomeException)
       return uuid
