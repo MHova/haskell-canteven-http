@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 {- |
   This module provides some utilities that make for better HTTP-based
   programs.
@@ -19,7 +20,7 @@ import Control.Concurrent (threadDelay)
 import Control.Exception (SomeException)
 import Control.Monad (void)
 import Control.Monad.Catch (try, throwM)
-import Control.Monad.Logger (runLoggingT, LoggingT, logInfoN)
+import Control.Monad.Logger (runLoggingT, LoggingT, logInfo, logError)
 import Control.Monad.Trans.Class (lift)
 import Data.ByteString.Lazy (ByteString, fromStrict)
 import Data.Monoid ((<>))
@@ -125,7 +126,7 @@ logExceptionsAndContinue logging app req respond = (`runLoggingT` logging) $
     logProblem :: SomeException -> LoggingT IO UUID
     logProblem err = do
       uuid <- getUUID
-      logInfoN . pack
+      $(logError) . pack
         $ "Internal Server Error [" ++ show uuid ++ "]: "
         ++ show (err :: SomeException)
       return uuid
@@ -141,7 +142,7 @@ logExceptionsAndContinue logging app req respond = (`runLoggingT` logging) $
 -}
 requestLogging :: LoggerTImpl -> Middleware
 requestLogging logging app req respond = (`runLoggingT` logging) $ do
-    logInfoN . pack
+    $(logInfo) . pack
       $ "Starting request: " ++ reqStr
     lift . app req . loggingRespond =<< lift getCurrentTime
   where
@@ -154,7 +155,7 @@ requestLogging logging app req respond = (`runLoggingT` logging) $ do
       -}
       ack <- lift $ respond response
       now <- lift getCurrentTime
-      logInfoN . pack
+      $(logInfo) . pack
         $ reqStr ++ " --> " ++ showStatus (responseStatus response)
         ++ " (" ++ show (diffUTCTime now start) ++ ")"
       return ack
