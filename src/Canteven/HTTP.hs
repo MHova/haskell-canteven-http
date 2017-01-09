@@ -12,6 +12,7 @@ module Canteven.HTTP (
   ContentType,
   requestLogging,
   logExceptionsAndContinue,
+  setServer,
 ) where
 
 
@@ -24,58 +25,50 @@ import Control.Monad.Logger (runLoggingT, LoggingT, logInfo, logError)
 import Control.Monad.Trans.Class (lift)
 import Data.ByteString.Lazy (ByteString, fromStrict)
 import Data.Monoid ((<>))
-import Data.Text (pack, unpack)
+import Data.Text (Text, pack, unpack)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Data.Time.Clock (getCurrentTime, UTCTime, diffUTCTime)
 import Data.UUID (UUID)
 import Data.UUID.V1 (nextUUID)
+import Data.Version (showVersion, Version)
 import Network.HTTP.Types (internalServerError500, Status, statusCode,
   statusMessage)
 import Network.Wai (Middleware, responseStatus, requestMethod,
-  rawPathInfo, rawQueryString, Response, ResponseReceived, responseLBS)
+  rawPathInfo, rawQueryString, Response, ResponseReceived, responseLBS,
+  modifyResponse)
+import Network.Wai.Middleware.AddHeaders (addHeaders)
+import Network.Wai.Middleware.StripHeaders (stripHeader)
 
 
-{- |
-  The class of things that can be read as http message entities.
--}
+{- | The class of things that can be read as http message entities. -}
 class FromEntity e where
-  {- |
-    Decode the entity, according to the specified content type.
-  -}
+  {- | Decode the entity, according to the specified content type. -}
   decodeEntity :: Maybe ContentType -> ByteString -> DecodeResult e
 
 
-{- |
-  The class of things that can be used to generate http message entities.
--}
+{- | The class of things that can be used to generate http message entities. -}
 class ToEntity e where
-  {- |
-    The content type of the respone entity.
-  -}
+  {- | The content type of the respone entity. -}
   getContentType :: e -> ContentType
 
-  {- |
-    The bytes associated with the response entity.
-  -}
+  {- | The bytes associated with the response entity. -}
   getBytes :: e -> ByteString
 
 
-{- |
-  The result of trying to decode a request entity.
--}
+{- | The result of trying to decode a request entity. -}
 data DecodeResult e
   = Unsupported
-    -- ^ Signifies an unsupported content type.
+    {- ^ Signifies an unsupported content type.  -}
   | BadEntity String
-    -- ^ Signifies that the request entity is invalid, and provides some
-    --   kind of reason why.
+    {- ^
+      Signifies that the request entity is invalid, and provides some
+      kind of reason why.
+    -}
   | Ok e
-    -- ^ Successfully decoded the entity.
+    {- ^ Successfully decoded the entity. -}
 
 
-{- |
-  ContentType is an alias for ByteString
--}
+{- | ContentType is an alias for ByteString. -}
 type ContentType = ByteString
 
 
@@ -173,5 +166,25 @@ requestLogging logging app req respond = (`runLoggingT` logging) $ do
     showStatus stat =
       show (statusCode stat) ++ " "
       ++ (unpack . decodeUtf8 . statusMessage) stat
+
+
+{- |
+  Set the @Server:@ header.
+
+  @since 0.1.2
+-}
+setServer :: Text -> Version -> Middleware
+setServer serviceName version = addServerHeader . stripServerHeader
+  where
+    {- | Strip the server header. -}
+    stripServerHeader :: Middleware
+    stripServerHeader = modifyResponse (stripHeader "Server")
+
+    {- | Add our own server header. -}
+    addServerHeader :: Middleware
+    addServerHeader = addHeaders [("Server", serverValue)]
+
+    {- | The value of the @Server:@ header. -}
+    serverValue = encodeUtf8 (serviceName <> "/" <> pack (showVersion version))
 
 
