@@ -12,6 +12,7 @@ module Canteven.HTTP (
   ContentType,
   requestLogging,
   logExceptionsAndContinue,
+  setServer,
 ) where
 
 
@@ -24,15 +25,19 @@ import Control.Monad.Logger (runLoggingT, LoggingT, logInfo, logError)
 import Control.Monad.Trans.Class (lift)
 import Data.ByteString.Lazy (ByteString, fromStrict)
 import Data.Monoid ((<>))
-import Data.Text (pack, unpack)
+import Data.Text (Text, pack, unpack)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Data.Time.Clock (getCurrentTime, UTCTime, diffUTCTime)
 import Data.UUID (UUID)
 import Data.UUID.V1 (nextUUID)
+import Data.Version (showVersion, Version)
 import Network.HTTP.Types (internalServerError500, Status, statusCode,
   statusMessage)
 import Network.Wai (Middleware, responseStatus, requestMethod,
-  rawPathInfo, rawQueryString, Response, ResponseReceived, responseLBS)
+  rawPathInfo, rawQueryString, Response, ResponseReceived, responseLBS,
+  modifyResponse)
+import Network.Wai.Middleware.AddHeaders (addHeaders)
+import Network.Wai.Middleware.StripHeaders (stripHeader)
 
 
 {- | The class of things that can be read as http message entities. -}
@@ -161,5 +166,25 @@ requestLogging logging app req respond = (`runLoggingT` logging) $ do
     showStatus stat =
       show (statusCode stat) ++ " "
       ++ (unpack . decodeUtf8 . statusMessage) stat
+
+
+{- |
+  Set the @Server:@ header.
+
+  @since 0.1.2
+-}
+setServer :: Text -> Version -> Middleware
+setServer serviceName version = addServerHeader . stripServerHeader
+  where
+    {- | Strip the server header. -}
+    stripServerHeader :: Middleware
+    stripServerHeader = modifyResponse (stripHeader "Server")
+
+    {- | Add our own server header. -}
+    addServerHeader :: Middleware
+    addServerHeader = addHeaders [("Server", serverValue)]
+
+    {- | The value of the @Server:@ header. -}
+    serverValue = encodeUtf8 (serviceName <> "/" <> pack (showVersion version))
 
 
