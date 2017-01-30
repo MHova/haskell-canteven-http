@@ -4,4 +4,4 @@ packages:
 - '.'
 extra-deps:
 - canteven-log-2.0.0.1
-resolver: lts-7.1
+resolver: lts-7.17
