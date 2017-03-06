@@ -78,6 +78,7 @@ data DecodeResult e
     -}
   | Ok e
     {- ^ Successfully decoded the entity. -}
+  deriving (Show)
 
 
 {- | ContentType is an alias for ByteString. -}
