@@ -24,12 +24,14 @@ import Control.Monad (void, join)
 import Control.Monad.Catch (try, throwM)
 import Control.Monad.Logger (runLoggingT, LoggingT, logInfo, logError)
 import Control.Monad.Trans.Class (lift)
-import Data.List ((\\))
+import Data.ByteString (ByteString)
+import Data.List ((\\), find)
 import Data.Maybe (catMaybes)
 import Data.Monoid ((<>))
 import Data.Text (Text, pack, unpack)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Data.Time.Clock (getCurrentTime, UTCTime, diffUTCTime)
+import Data.Tuple (fst, snd)
 import Data.UUID (UUID)
 import Data.UUID.V1 (nextUUID)
 import Data.Version (showVersion, Version)
@@ -38,7 +40,7 @@ import Network.HTTP.Types (internalServerError500, Status, statusCode,
   statusMessage, ok200)
 import Network.Mime (defaultMimeLookup)
 import Network.Wai (Middleware, responseStatus, requestMethod,
-  rawPathInfo, rawQueryString, Response, ResponseReceived, responseLBS,
+  rawPathInfo, rawQueryString, Response, ResponseReceived, requestHeaders, responseLBS,
   modifyResponse, pathInfo)
 import Network.Wai.Middleware.AddHeaders (addHeaders)
 import Network.Wai.Middleware.StripHeaders (stripHeader)
@@ -150,6 +152,10 @@ requestLogging :: LoggerTImpl -> Middleware
 requestLogging logging app req respond = (`runLoggingT` logging) $ do
     $(logInfo) . pack
       $ "Starting request: " ++ reqStr
+    $(logInfo) $ maybe
+      "X-Request-Id header missing"
+      ((T.append) "X-Request-Id: " . decodeUtf8)
+      requestHeaderRequestId
     lift . app req . loggingRespond =<< lift getCurrentTime
   where
     {- | Delegate to the underlying responder, and do some logging. -}
@@ -179,6 +185,10 @@ requestLogging logging app req respond = (`runLoggingT` logging) $ do
     showStatus stat =
       show (statusCode stat) ++ " "
       ++ (unpack . decodeUtf8 . statusMessage) stat
+
+    requestHeaderRequestId :: Maybe ByteString
+    requestHeaderRequestId = snd <$> find ((==) "X-Request-Id" . fst)
+      (requestHeaders req)
 
 
 {- |
