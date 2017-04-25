@@ -1,0 +1,1 @@
+The `.src` folder is a workaround for HLint not supporting Template Haskell typed quotes. See https://github.com/ndmitchell/hlint/issues/332 and https://github.com/ndmitchell/hlint/issues/117#issuecomment-297130437
