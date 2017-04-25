@@ -31,7 +31,6 @@ import Data.Monoid ((<>))
 import Data.Text (Text, pack, unpack)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Data.Time.Clock (getCurrentTime, UTCTime, diffUTCTime)
-import Data.Tuple (fst, snd)
 import Data.UUID (UUID)
 import Data.UUID.V1 (nextUUID)
 import Data.Version (showVersion, Version)
@@ -154,7 +153,7 @@ requestLogging logging app req respond = (`runLoggingT` logging) $ do
       $ "Starting request: " ++ reqStr
     $(logInfo) $ maybe
       "X-Request-Id header missing"
-      ((T.append) "X-Request-Id: " . decodeUtf8)
+      (T.append "X-Request-Id: " . decodeUtf8)
       requestHeaderRequestId
     lift . app req . loggingRespond =<< lift getCurrentTime
   where
