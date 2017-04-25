@@ -27,7 +27,7 @@ import Control.Monad.Trans.Class (lift)
 import Data.ByteString (ByteString)
 import Data.List (find)
 import Data.Monoid ((<>))
-import Data.Text (Text, pack, unpack)
+import Data.Text (Text, pack)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Data.Time.Clock (getCurrentTime, UTCTime, diffUTCTime)
 import Data.UUID (UUID)
@@ -39,7 +39,6 @@ import Network.Wai (Middleware, responseStatus, requestMethod, rawPathInfo,
 import Network.Wai.Middleware.AddHeaders (addHeaders)
 import Network.Wai.Middleware.StripHeaders (stripHeader)
 import qualified Data.ByteString.Lazy as BSL
-import qualified Data.Text as T
 
 
 {- | The class of things that can be read as http message entities. -}
@@ -138,12 +137,7 @@ logExceptionsAndContinue logging app req respond = (`runLoggingT` logging) $
 -}
 requestLogging :: LoggerTImpl -> Middleware
 requestLogging logging app req respond = (`runLoggingT` logging) $ do
-    $(logInfo) . pack
-      $ "Starting request: " ++ reqStr
-    $(logInfo) $ maybe
-      "X-Request-Id header missing"
-      (T.append "X-Request-Id: " . decodeUtf8)
-      requestHeaderRequestId
+    $(logInfo) $ requestStartMessage requestHeaderRequestId <> reqStr
     lift . app req . loggingRespond =<< lift getCurrentTime
   where
     {- | Delegate to the underlying responder, and do some logging. -}
@@ -155,28 +149,34 @@ requestLogging logging app req respond = (`runLoggingT` logging) $ do
       -}
       ack <- lift $ respond response
       now <- lift getCurrentTime
-      $(logInfo) . pack
-        $ reqStr ++ " --> " ++ showStatus (responseStatus response)
-        ++ " (" ++ show (diffUTCTime now start) ++ ")"
+      $(logInfo)
+        $ reqStr <> " --> " <> showStatus (responseStatus response)
+        <> " (" <> (pack . show $ diffUTCTime now start) <> ")"
       return ack
 
-    {- | A string representation of the request, suitable for logging. -}
-    reqStr :: String
-    reqStr = unpack . decodeUtf8
+    {- | A Text representation of the request, suitable for logging. -}
+    reqStr :: Text
+    reqStr = decodeUtf8
       $ requestMethod req <> " " <> rawPathInfo req <> rawQueryString req
 
     {- |
       @instance Show Status@ shows the Haskell structure, which is
       not suitable for logging.
     -}
-    showStatus :: Status -> String
+    showStatus :: Status -> Text
     showStatus stat =
-      show (statusCode stat) ++ " "
-      ++ (unpack . decodeUtf8 . statusMessage) stat
+      (pack . show . statusCode) stat <> " "
+      <> (decodeUtf8 . statusMessage) stat
 
     requestHeaderRequestId :: Maybe ByteString
     requestHeaderRequestId = snd <$> find ((==) "X-Request-Id" . fst)
       (requestHeaders req)
+
+    requestStartMessage :: Maybe ByteString -> Text
+    requestStartMessage Nothing =
+      "Starting request without requestId: "
+    requestStartMessage (Just requestId) =
+      "Starting request with requestId " <> decodeUtf8 requestId <> ": "
 
 
 {- |
