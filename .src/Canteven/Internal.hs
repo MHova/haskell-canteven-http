@@ -9,6 +9,7 @@ import Control.Monad (join)
 import Data.List ((\\))
 import Data.Maybe (catMaybes)
 import Language.Haskell.TH (TExp, Q, runIO)
+import Language.Haskell.TH.Syntax (addDependentFile)
 import Network.HTTP.Types (ok200)
 import Network.Mime (defaultMimeLookup)
 import Network.Wai (Middleware, responseLBS, pathInfo)
@@ -36,7 +37,7 @@ staticSite :: FilePath -> Q (TExp Middleware)
 staticSite baseDir = join . runIO $ do
     files <- readStaticFiles
     mapM_ (printResource . fst) files
-    return $ [||
+    return $ mapM_ (addDependentFile . ((baseDir ++ "/") ++) . fst) files >> [||
         let
           {- |
             Build a middleware that serves a single static file path, or
